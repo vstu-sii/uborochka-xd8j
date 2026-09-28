@@ -1,3 +1,18 @@
+# Compose-скелет v2 для «Уборочки».
+#
+# Экономит время в лабе 3: сервисы будущей системы уже описаны как
+# заглушки (app, db), с сетями, volumes и health checks — при переходе
+# к реальной интеграции меняются только образы/команды, а не структура.
+#
+# Соответствие C4 (docs/architecture/container.puml):
+#   app -> Telegram Adapter + Bot Orchestrator + Vision Client
+#          (один Python-процесс на этом этапе; см. ADR-001 про то,
+#          почему домен и адаптеры разделены внутри кода, а не как
+#          отдельные контейнеры compose — разделять по Docker-сервисам
+#          есть смысл только когда у них разная нагрузка/масштабирование)
+#   db  -> Assessments DB
+#   migrate -> одноразовое применение database/migrations/*.sql
+
 services:
   app:
     build:
@@ -5,13 +20,65 @@ services:
       dockerfile: Dockerfile
     env_file:
       - .env
+    environment:
+      DATABASE_URL: postgresql://uborochka:uborochka@db:5432/uborochka
     ports:
       - "8000:8000"
     volumes:
       - ./src:/app/src
     command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
       interval: 10s
       timeout: 3s
       retries: 5
+    networks:
+      - uborochka
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: uborochka
+      POSTGRES_PASSWORD: uborochka
+      POSTGRES_DB: uborochka
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uborochka -d uborochka"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - uborochka
+
+  # Заглушка: применяет миграции один раз и завершается.
+  # Запуск: docker compose -f compose.dev.yml --profile tools run --rm migrate
+  migrate:
+    image: postgres:16-alpine
+    profiles: ["tools"]
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./database/migrations:/migrations:ro
+    entrypoint:
+      [
+        "sh", "-c",
+        "for f in /migrations/*.sql; do echo applying $$f; psql \"$$DATABASE_URL\" -f \"$$f\" || exit 1; done",
+      ]
+    environment:
+      DATABASE_URL: postgresql://uborochka:uborochka@db:5432/uborochka
+    networks:
+      - uborochka
+
+networks:
+  uborochka:
+    driver: bridge
+
+volumes:
+  pgdata:

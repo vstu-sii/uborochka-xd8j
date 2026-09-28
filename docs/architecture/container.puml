@@ -1,0 +1,28 @@
+@startuml container
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Уборочка — диаграмма контейнеров (C4, уровень 2)
+
+Person(user, "Пользователь", "Приёмщик клининга / управляющий УК: присылает фото убранного помещения")
+
+System_Ext(telegram, "Telegram Bot API", "Мессенджер, через который приходит фото и уходит результат")
+System_Ext(ai_vision, "AI Vision Model", "AI Model. Внешняя мультимодальная модель, оценивающая чистоту по фото")
+
+System_Boundary(uborochka, "Уборочка") {
+  Container(telegram_adapter, "Telegram Adapter", "python-telegram-bot", "Единственная точка интеграции с Telegram: принимает вебхуки, отправляет ответы", $tags="acl")
+  Container(bot_api, "Bot Orchestrator", "FastAPI", "Разбирает входящее сообщение, вызывает анализ, формирует ответ")
+  Container(vision_client, "Vision Client", "httpx", "Единственная точка интеграции с AI-моделью: готовит запрос, парсит ответ", $tags="acl")
+  Container(assessments_repo, "Assessments Repo", "SQLAlchemy", "Единственная точка доступа к БД: сохраняет и читает оценки")
+  ContainerDb(assessments_db, "Assessments DB", "PostgreSQL", "Хранит фото-ссылки, оценки и рекомендации")
+}
+
+Rel(user, telegram_adapter, "Отправляет фото убранного помещения (через Telegram)")
+Rel(telegram_adapter, telegram, "Принимает вебхуки, отправляет готовый ответ", "HTTPS via API Gateway")
+Rel(telegram_adapter, bot_api, "Передаёт входящее сообщение, получает готовый ответ")
+Rel(bot_api, vision_client, "Запрашивает оценку фото")
+Rel(vision_client, ai_vision, "Отправляет фото на анализ, получает оценку и рекомендации", "HTTPS via API Gateway")
+Rel(bot_api, assessments_repo, "Сохраняет и читает оценку")
+Rel(assessments_repo, assessments_db, "SQL", "PostgreSQL")
+
+SHOW_LEGEND()
+@enduml
