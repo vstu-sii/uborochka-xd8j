@@ -1,0 +1,62 @@
+openapi: 3.0.3
+info:
+  title: AI Inspection API
+  description: API для оценки качества уборки по фото
+  version: 1.0.0
+
+paths:
+  /inspection:
+    post:
+      summary: Анализ фото уборки
+      description: Загружает фото и возвращает оценку качества
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - photo
+                - room_id
+                - maid_id
+              properties:
+                photo:
+                  type: string
+                  format: binary
+                room_id:
+                  type: string
+                maid_id:
+                  type: string
+                room_type:
+                  type: string
+      responses:
+        '200':
+          description: Успешный анализ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                  result:
+                    type: object
+                    properties:
+                      checklist:
+                        type: object
+                      violations:
+                        type: array
+                      score:
+                        type: integer
+                      confidence:
+                        type: string
+                      model_used:
+                        type: string
+                      cache_hit:
+                        type: boolean
+        '400':
+          description: Ошибка валидации
+        '429':
+          description: Превышен лимит запросов
+        '500':
+          description: Ошибка сервера
