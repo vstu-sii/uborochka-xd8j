@@ -1,0 +1,18 @@
+@startuml context
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title Уборочка — диаграмма контекста (C4, уровень 1)
+
+Person(user, "Пользователь", "Приёмщик клининга / управляющий УК: присылает фото убранного помещения и получает оценку")
+
+System(uborochka, "Уборочка", "Telegram-бот, который по фото убранного помещения выставляет оценку 1-10 и даёт рекомендации")
+
+System_Ext(telegram, "Telegram Bot API", "Мессенджер, через который пользователь общается с ботом")
+System_Ext(ai_vision, "AI Vision Model", "AI Model. Внешняя мультимодальная модель, анализирующая фото")
+
+Rel(user, telegram, "Отправляет фото, читает оценку и рекомендации")
+Rel(telegram, uborochka, "Передаёт сообщения пользователя, доставляет ответ бота", "Webhook / HTTPS")
+Rel(uborochka, ai_vision, "Запрашивает анализ фото", "HTTPS")
+
+SHOW_LEGEND()
+@enduml
