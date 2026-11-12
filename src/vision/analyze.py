@@ -11,17 +11,22 @@ from dataclasses import dataclass
 
 @dataclass
 class CleaningAssessment:
-    score: int  # 1..10
+    score: int
     recommendations: list[str]
+    confidence: str
+    model_used: str
+    is_demo: bool
 
 
 def analyze_photo(image_bytes: bytes) -> CleaningAssessment:
-    """TODO: заменить заглушку на реальный вызов AI-модели.
+    """Return a clearly marked placeholder until the vision model is integrated."""
+    if not image_bytes:
+        raise ValueError("image_bytes must not be empty")
 
-    Возвращает заглушечную оценку, чтобы hello-world конец в конец
-    работал уже сейчас.
-    """
     return CleaningAssessment(
-        score=0,
-        recommendations=["Анализ ещё не подключён — это заглушка."],
+        score=7,
+        recommendations=["Демонстрационный результат: подключите AI-модель."],
+        confidence="low",
+        model_used="demo-stub",
+        is_demo=True,
     )

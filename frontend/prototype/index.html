@@ -3,14 +3,13 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Уборочка — прототип ключевых экранов</title>
-<link rel="stylesheet" href="styles.css" />
+<title>Уборочка — оценка уборки</title>
+<link rel="stylesheet" href="/prototype/styles.css" />
 </head>
 <body>
   <header class="app-header">
-    <h1>Уборочка — прототип ключевых экранов</h1>
-    <p>Статический прототип диалога с Telegram-ботом. Собран как код (HTML/CSS/JS),
-       без Figma и Miro — соответствует четырём ключевым состояниям чата.</p>
+    <h1>Уборочка — проверка качества уборки</h1>
+    <p>Загрузите фото помещения, чтобы пройти сквозной сценарий прототипа.</p>
   </header>
 
   <nav class="tabs" role="tablist">
@@ -32,44 +31,57 @@
 
       <section id="screen-start" class="screen active">
         <div class="bubble bot">
-          Привет! Я оцениваю качество уборки по фото.<br />
-          Пришли фото убранного помещения — оценю от 1 до 10 и подскажу,
-          что доработать.
+          Загрузите фото убранного помещения. Прототип сохранит результат
+          проверки и покажет рекомендации.
         </div>
+        <form id="inspection-form" class="inspection-form">
+          <label>
+            Фото помещения
+            <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
+          </label>
+          <label>
+            ID помещения
+            <input name="room_id" type="text" maxlength="100" value="room-101" required />
+          </label>
+          <label>
+            ID сотрудника
+            <input name="maid_id" type="text" maxlength="100" value="maid-001" required />
+          </label>
+          <button id="submit-inspection" type="submit">Проверить фото</button>
+        </form>
       </section>
 
       <section id="screen-uploaded" class="screen">
         <div class="bubble user photo">
-          <div class="photo-placeholder">📷 фото помещения</div>
+          <img id="uploaded-image" class="uploaded-image" alt="Загруженное помещение" />
         </div>
-        <div class="bubble bot typing">
-          Анализирую фото<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+        <div class="bubble bot typing" aria-live="polite">
+          Сохраняю проверку<span class="dots"><span>.</span><span>.</span><span>.</span></span>
         </div>
       </section>
 
       <section id="screen-result" class="screen">
         <div class="bubble user photo">
-          <div class="photo-placeholder">📷 фото помещения</div>
+          <img class="uploaded-image result-image" alt="Проверенное помещение" />
         </div>
         <div class="bubble bot result">
-          <div class="score">Оценка: <strong>7 / 10</strong></div>
+          <div class="score">Оценка: <strong id="score">— / 10</strong></div>
+          <p id="demo-notice" class="demo-notice" hidden>
+            Демонстрационная оценка: AI-модель ещё не подключена. Не используйте
+            результат для реальной приёмки.
+          </p>
+          <p id="request-id" class="request-id"></p>
           <div class="reco-title">Рекомендации:</div>
-          <ul>
-            <li>Протереть пыль на полке у окна</li>
-            <li>Пропылесосить под кроватью</li>
-            <li>Убрать разводы на зеркале</li>
-          </ul>
+          <ul id="recommendations"></ul>
         </div>
       </section>
 
       <section id="screen-error" class="screen">
         <div class="bubble user photo">
-          <div class="photo-placeholder">📷 фото помещения</div>
+          <img class="uploaded-image error-image" alt="Необработанное помещение" />
         </div>
-        <div class="bubble bot error">
-          Не получилось распознать фото — похоже, снимок слишком тёмный
-          или размытый. Пришли, пожалуйста, ещё раз при дневном свете.
-        </div>
+        <div id="error-message" class="bubble bot error" role="alert"></div>
+        <button id="retry-upload" type="button">Попробовать ещё раз</button>
       </section>
 
       <div class="tg-input">
@@ -79,6 +91,6 @@
     </div>
   </main>
 
-  <script src="app.js"></script>
+  <script src="/prototype/app.js"></script>
 </body>
 </html>

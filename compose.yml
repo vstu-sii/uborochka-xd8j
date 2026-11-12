@@ -1,0 +1,63 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://uborochka:uborochka@db:5432/uborochka
+    ports:
+      - "8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - uborochka
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: uborochka
+      POSTGRES_PASSWORD: uborochka
+      POSTGRES_DB: uborochka
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uborochka -d uborochka"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - uborochka
+
+  migrate:
+    image: postgres:16-alpine
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./database/migrations:/migrations:ro
+    entrypoint:
+      [
+        "sh", "-c",
+        "for f in /migrations/*.sql; do echo applying $$f; psql \"$$DATABASE_URL\" -v ON_ERROR_STOP=1 -f \"$$f\" || exit 1; done",
+      ]
+    environment:
+      DATABASE_URL: postgresql://uborochka:uborochka@db:5432/uborochka
+    networks:
+      - uborochka
+
+networks:
+  uborochka:
+    driver: bridge
+
+volumes:
+  pgdata:
