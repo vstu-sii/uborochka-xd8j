@@ -16,7 +16,8 @@ push в `main`, публичный HTTPS-URL из коробки, легко д�
    - **Branch**: `main`
    - **Auto-Deploy**: On (деплой на каждый push в main)
 4. Environment Variables — перенести все ключи из `.env.example` с
-   реальными значениями (Render → Environment)
+   реальными значениями (Render → Environment), включая `DATABASE_URL`
+   от созданной Render PostgreSQL. Не используйте локальный URL из Compose.
 5. Deploy. После первого успешного деплоя Render выдаст публичный URL
    вида `https://<service-name>.onrender.com`
 6. Проверить, что `https://<service-name>.onrender.com/health`
@@ -24,6 +25,11 @@ push в `main`, публичный HTTPS-URL из коробки, легко д�
 7. Вписать этот URL в README.md в раздел «Прод»
 8. Дать доступ всей команде: Render → Project → Settings → Team →
    Invite
+
+Перед первым запуском применить SQL-миграции к созданной базе в порядке
+имён файлов из `database/migrations/` (например, `psql "$DATABASE_URL"
+-v ON_ERROR_STOP=1 -f database/migrations/0001_init.sql`, затем `0002...`).
+Без доступной БД endpoint `/inspection` вернёт HTTP 503.
 
 ## Подключение Telegram webhook (когда бот будет готов)
 

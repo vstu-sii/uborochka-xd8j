@@ -28,5 +28,8 @@ jobs:
       - name: Format check (black)
         run: black --check src
 
+      - name: Tests
+        run: pytest -q
+
       - name: Build Docker image
         run: docker build -t cleaning-quality-bot:ci .

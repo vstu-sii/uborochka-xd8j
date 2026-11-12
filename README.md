@@ -14,9 +14,11 @@ AI-модель анализирует чистоту/порядок и выст
 
 ## Прод
 
-Публичный URL: **`https://uborochka-xd8j.onrender.com`**
-Что это за URL: health-check эндпоинт FastAPI-обвязки бота
-(см. `docs/deploy.md`) — подтверждает, что сервис живой и задеплоен.
+Публичный URL Render: **`https://uborochka-xd8j.onrender.com`**.
+Настройки деплоя описаны в [docs/deploy.md](docs/deploy.md). Этот URL ранее
+обслуживал только health-check; проверяйте `/health` после каждого деплоя.
+/health возвращает 200, если база доступна, иначе 503
+Продакшен: https://uborochka-xd8j.onrender.com (бесплатный тариф Render, первый запрос после простоя может занять до 50 секунд; база на Render действует до 12.12.2026)
 
 ## Как поднять проект локально (dev)
 
@@ -25,11 +27,17 @@ AI-модель анализирует чистоту/порядок и выст
 ```bash
 cp .env.example .env
 # заполнить .env реальными значениями (токен бота, ключ AI-модели)
-docker compose -f docker-compose.dev.yml up --build
+docker compose up --build
 ```
 
-Сервис поднимется на `http://localhost:8000`, health-check —
-`http://localhost:8000/health`.
+Миграции БД применяются при старте. Интерфейс: `http://localhost:8000`,
+API документация: `http://localhost:8000/docs`, health-check —
+`http://localhost:8000/health`. Фото отправляются в `POST /inspection`
+и сведения о проверке сохраняются в PostgreSQL. Загруженные изображения
+не сохраняются.
+
+Пока AI-модель не подключена, API возвращает демонстрационную оценку,
+помеченную `is_demo: true`. Её нельзя использовать для реальной приёмки.
 
 Время подъёма окружения должно быть < 10 минут. Если дольше — это баг,
 заводи issue.
@@ -39,15 +47,16 @@ docker compose -f docker-compose.dev.yml up --build
 ```
 .
 ├── src/                    # код приложения
-│   ├── main.py              # FastAPI-приложение (health-check, webhook)
+│   ├── main.py              # FastAPI-приложение и API оценки
 │   ├── bot/                  # логика Telegram-бота
 │   └── vision/                # обёртка над AI-моделью для анализа фото
+├── compose.yml              # API, PostgreSQL и миграции
 ├── docs/
-│   └── deploy.md            # как задеплоить прод
+│   ├── deploy.md            # как задеплоить прод
+│   └── agent-workflow.md    # отчёт DELIVERY по ЛР3
 ├── .github/
 │   ├── workflows/ci.yml     # lint + format + build на каждый PR
 │   └── PULL_REQUEST_TEMPLATE.md
-├── docker-compose.dev.yml   # dev-окружение одной командой
 ├── Dockerfile                # прод-образ
 ├── requirements.txt
 ├── .env.example
