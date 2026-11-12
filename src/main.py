@@ -64,7 +64,14 @@ async def inspect_photo(
             status_code=413, detail="Размер изображения превышает 10 МБ."
         )
 
-    assessment = analyze_photo(image_bytes)
+    try:
+        assessment = analyze_photo(image_bytes)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=422,
+            detail="Не удалось прочитать изображение. Загрузите другое фото.",
+        ) from error
+
     try:
         saved = create_assessment(
             maid_id=maid_id,
