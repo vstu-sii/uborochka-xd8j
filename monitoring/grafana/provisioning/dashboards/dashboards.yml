@@ -1,0 +1,11 @@
+apiVersion: 1
+
+providers:
+  - name: Uborochka
+    orgId: 1
+    folder: Uborochka
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /var/lib/grafana/dashboards
