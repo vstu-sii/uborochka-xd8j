@@ -47,6 +47,10 @@
             ID сотрудника
             <input name="maid_id" type="text" maxlength="100" value="maid-001" required />
           </label>
+          <label>
+            Ключ доступа (если требуется)
+            <input name="api_key" type="password" autocomplete="off" />
+          </label>
           <button id="submit-inspection" type="submit">Проверить фото</button>
         </form>
       </section>
@@ -66,9 +70,9 @@
         </div>
         <div class="bubble bot result">
           <div class="score">Оценка: <strong id="score">— / 10</strong></div>
-          <p id="demo-notice" class="demo-notice" hidden>
-            Демонстрационная оценка: AI-модель ещё не подключена. Не используйте
-            результат для реальной приёмки.
+          <p id="model-notice" class="demo-notice" hidden>
+            Использована baseline-эвристика (Pillow). Не используйте
+            результат как единственное основание для реальной приёмки.
           </p>
           <p id="request-id" class="request-id"></p>
           <div class="reco-title">Рекомендации:</div>

@@ -18,7 +18,9 @@ AI-модель анализирует чистоту/порядок и выст
 Настройки деплоя описаны в [docs/deploy.md](docs/deploy.md). Этот URL ранее
 обслуживал только health-check; проверяйте `/health` после каждого деплоя.
 /health возвращает 200, если база доступна, иначе 503
-Продакшен: https://uborochka-xd8j.onrender.com (бесплатный тариф Render, первый запрос после простоя может занять до 50 секунд; база на Render действует до 12.12.2026)
+Продакшен: https://uborochka-xd8j.onrender.com (Render, первый запрос после
+простоя может занять до 50 секунд). Фактический статус сервиса проверяйте
+по `/health`.
 
 ## Как поднять проект локально (dev)
 
@@ -26,7 +28,7 @@ AI-модель анализирует чистоту/порядок и выст
 
 ```bash
 cp .env.example .env
-# заполнить .env реальными значениями (токен бота, ключ AI-модели)
+# локально секреты не нужны для baseline-эвристики; Gemini включается отдельно
 docker compose up --build
 ```
 
@@ -36,8 +38,9 @@ API документация: `http://localhost:8000/docs`, health-check —
 и сведения о проверке сохраняются в PostgreSQL. Загруженные изображения
 не сохраняются.
 
-Пока AI-модель не подключена, API возвращает демонстрационную оценку,
-помеченную `is_demo: true`. Её нельзя использовать для реальной приёмки.
+По умолчанию анализ выполняет baseline-эвристика (Pillow); это ограниченная
+эвристическая оценка, а не профессиональная приёмка качества. Gemini Flash-Lite
+можно включить отдельно через `GEMINI_ENABLED` и `GEMINI_API_KEY`.
 
 Время подъёма окружения должно быть < 10 минут. Если дольше — это баг,
 заводи issue.
@@ -51,11 +54,18 @@ API документация: `http://localhost:8000/docs`, health-check —
 │   ├── bot/                  # логика Telegram-бота
 │   └── vision/                # обёртка над AI-моделью для анализа фото
 ├── compose.yml              # API, PostgreSQL и миграции
+├── compose.staging.yml      # изолированный staging поверх локального Compose
+├── backend/                 # лимиты, guards, модельные провайдеры, метрики
+├── monitoring/              # Prometheus, Loki, Tempo, Alloy, Grafana
 ├── docs/
-│   ├── deploy.md            # как задеплоить прод
-│   └── agent-workflow.md    # отчёт DELIVERY по ЛР3
+│   ├── deploy.md            # CI/CD, Render и откат
+│   ├── environments.md      # local/staging/prod
+│   ├── lab4-delivery.md     # DoD и команды проверки Lab 4
+│   └── agent-workflow.md    # отчёт DELIVERY
 ├── .github/
-│   ├── workflows/ci.yml     # lint + format + build на каждый PR
+│   ├── workflows/ci.yml     # CI на PR и push
+│   ├── workflows/deploy.yml # проверки, сборка и автодеплой
+│   └── workflows/rollback.yml
 │   └── PULL_REQUEST_TEMPLATE.md
 ├── Dockerfile                # прод-образ
 ├── requirements.txt
@@ -77,4 +87,25 @@ API документация: `http://localhost:8000/docs`, health-check —
 1. Ветка от `main`: `feature/<короткое-описание>` или `fix/<короткое-описание>`
 2. PR по шаблону из `.github/PULL_REQUEST_TEMPLATE.md`
 3. CI (lint, format, build) обязателен для мёржа
-4. Секреты — только в `.env` (в `.gitignore`), никогда не коммитить в код
+4. Секреты — только в игнорируемом `.env`, GitHub Secrets или Render env vars,
+   никогда не коммитить в код
+
+## Lab 4: staging и мониторинг
+
+Staging поднимается теми же сервисами Compose, но с отдельными БД, томом и
+портами:
+
+```bash
+cp .env.staging.example .env.staging
+docker compose -f compose.yml -f compose.staging.yml up --build
+```
+
+Для локального мониторинга:
+
+```bash
+docker compose -f compose.yml -f monitoring/compose.monitoring.yml up --build
+```
+
+Grafana: <http://localhost:3000> (`admin` / `change-me` только для локального
+стека). Описание dashboard, лимитов, CI/CD и того, что ещё требует ручной
+проверки: [docs/lab4-delivery.md](docs/lab4-delivery.md).

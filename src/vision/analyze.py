@@ -25,6 +25,18 @@ class CleaningAssessment:
     confidence: str
     model_used: str
     is_demo: bool
+    tokens_used: int = 0
+    degraded: bool = False
+
+
+def validate_image(image_bytes: bytes) -> None:
+    if not image_bytes:
+        raise ValueError("image_bytes must not be empty")
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError) as error:
+        raise ValueError("image_bytes is not a valid image") from error
 
 
 def analyze_photo(image_bytes: bytes) -> CleaningAssessment:

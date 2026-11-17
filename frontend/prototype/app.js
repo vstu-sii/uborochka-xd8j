@@ -46,8 +46,11 @@ form.addEventListener("submit", async (event) => {
   showScreen("uploaded");
 
   try {
+    const apiKey = form.elements.api_key.value;
+    const headers = apiKey ? { "X-API-Key": apiKey } : {};
     const response = await fetch("/inspection", {
       method: "POST",
+      headers,
       body: new FormData(form),
     });
     const payload = await response.json();
@@ -59,7 +62,9 @@ form.addEventListener("submit", async (event) => {
     document.querySelector("#score").textContent = `${payload.result.score} / 10`;
     document.querySelector("#request-id").textContent =
       `Проверка №${payload.request_id}`;
-    document.querySelector("#demo-notice").hidden = !payload.result.is_demo;
+    const modelNotice = document.querySelector("#model-notice");
+    const baselineUsed = payload.result.model_used === "baseline-heuristic-v1";
+    modelNotice.hidden = !payload.result.is_demo && !baselineUsed;
     const recommendations = document.querySelector("#recommendations");
     recommendations.replaceChildren(
       ...payload.result.recommendations.map((text) => {

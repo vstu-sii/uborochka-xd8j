@@ -4,6 +4,7 @@ import os
 
 import psycopg
 
+from backend.guards.actions import authorize_action
 from src.vision.analyze import CleaningAssessment
 
 
@@ -27,6 +28,7 @@ def create_assessment(
     image_name: str,
     assessment: CleaningAssessment,
 ) -> dict[str, int]:
+    authorize_action("assessment.create", user_id=maid_id)
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise DatabaseNotConfigured("DATABASE_URL is not set")
@@ -64,6 +66,8 @@ def create_assessment(
             ),
         ).fetchone()[0]
 
+        for _ in assessment.recommendations:
+            authorize_action("recommendation.create", user_id=maid_id)
         connection.cursor().executemany(
             """
             INSERT INTO recommendations (assessment_id, text, position)
