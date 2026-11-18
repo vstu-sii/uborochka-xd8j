@@ -20,6 +20,9 @@ rates, limit and guard events, and recent Docker logs. The dashboard header
 links to Tempo traces. FastAPI spans and the nested `llm.call` span are exported
 to Tempo over OTLP gRPC. Prometheus scrapes `/metrics`; Alloy tails Docker JSON
 logs and forwards them to Loki.
+Loki's `trace_id` field links directly to the matching Tempo trace, and
+Tempo's trace view can query related logs by trace ID. The dashboard keeps the
+Tempo search and recent logs panels side by side.
 
 Grafana provisions an alert when a paid model reports any tokens in five
 minutes (`increase(model_tokens_total[5m]) > 0`). This avoids assuming a fixed
