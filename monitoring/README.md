@@ -3,6 +3,7 @@
 Start the app, PostgreSQL, Prometheus, Loki, Tempo, Alloy and Grafana:
 
 ```bash
+cp monitoring/metrics_token.example monitoring/metrics_token
 docker compose -f compose.yml -f monitoring/compose.monitoring.yml up --build
 ```
 
@@ -11,9 +12,18 @@ local-only stack), then open the provisioned **Уборочка — Production
 overview** dashboard. Prometheus is available at <http://localhost:9090>,
 Loki at <http://localhost:3100>, and Tempo at <http://localhost:3200>.
 Configure `GRAFANA_ADMIN_PASSWORD` in the shell or an ignored `.env` before
-sharing this stack. If `METRICS_TOKEN` is configured for the API, place the
-same value in the ignored `.env`; Compose passes it to Prometheus, which
-authenticates its `/metrics` scrape with a Bearer token.
+sharing this stack.
+
+The Prometheus scrape is unauthenticated by default; the application's
+`/metrics` endpoint is open unless `METRICS_TOKEN` is set. To enable Bearer
+authentication, copy `monitoring/metrics_token.example` to the ignored
+`monitoring/metrics_token`, replace its contents with the token, and set the
+same value as `METRICS_TOKEN` in the ignored `.env` (or `.env.staging`).
+Uncomment the `authorization` block in `monitoring/prometheus.yml` and restart
+Prometheus. Compose mounts the local `monitoring/metrics_token` file read-only
+at `/etc/prometheus/metrics_token`; the token is not passed as an environment
+variable or written to Prometheus configuration. The example contains only
+comments, so copying it is also safe when scraping without authentication.
 
 The dashboard includes request rate/errors/p95 latency, model calls and token
 rates, limit and guard events, and recent Docker logs. The dashboard header
@@ -24,25 +34,38 @@ Loki's `trace_id` field links directly to the matching Tempo trace, and
 Tempo's trace view can query related logs by trace ID. The dashboard keeps the
 Tempo search and recent logs panels side by side.
 
-Grafana provisions an alert when a paid model reports any tokens in five
-minutes (`increase(model_tokens_total[5m]) > 0`). This avoids assuming a fixed
-token count for an image: Gemini usage metadata is the source of truth.
-The anomaly script succeeds on the first five requests (daily request limit
-5) and expects HTTP 429 on request six. For the alert, enable Gemini and provide
-its API key; baseline-эвристика (Pillow) reports zero tokens and will not
-trigger a paid-model token alert. Configure `DAILY_REQUEST_LIMIT=5`,
-`DAILY_TOKEN_LIMIT=5000000`, and `MONTHLY_BUDGET_USD=10`, then run:
+Grafana provisions two independent alerts:
+
+- **Аномальный расход токенов**: `sum(increase(model_tokens_total[5m])) > 1`.
+  This smoke-test threshold is intentionally conservative. Five successful
+  Gemini responses with nonzero `usage_metadata.total_token_count` contribute
+  at least 1 token apiece: five calls contribute at least 5 in total, so the
+  `> 1` threshold is reachable without assuming a fixed image-token cost.
+  Raise the smoke-test threshold for production once normal traffic is known.
+  For this rule, enable Gemini and provide a valid key.
+- **Сработали лимиты пользователя**:
+  `sum(increase(limit_triggers_total[5m])) > 0`. Run the script with Gemini
+  disabled or no key; the first five baseline-эвристика (Pillow) requests
+  succeed and request six returns HTTP 429, incrementing the limit metric.
+
+Configure `DAILY_REQUEST_LIMIT=5`, `DAILY_TOKEN_LIMIT=5000000`, and
+`MONTHLY_BUDGET_USD=10`, then run:
 
 ```bash
 API_BASE_URL=http://localhost:8000 python scripts/simulate_anomaly.py
 ```
 
-The fixed pre-call reservation is 1,000 tokens per image; after a Gemini call,
-it is reconciled to `usage_metadata.total_token_count`. Five typical requests
-remain below the 5,000,000-token limit; the sixth is rejected by the request
-limit before invoking Gemini. If production auth is enabled, set
-`INSPECTION_API_KEY` in the process environment for the script. Use a disposable
-staging database/user because the usage counters persist for the current day.
+The configured token cap is 5,000,000; five Gemini calls reserve 5 × 1,000 =
+5,000 tokens before calls, then reconcile those reservations to the actual
+provider-reported token totals. This leaves substantial headroom for the
+script's five-call batch; the sixth request is rejected by the request limit
+before invoking a provider. Run the batch within five minutes for the rolling
+alert window. Use a fresh `MAID_ID` for each run, because request counters
+persist per user and day. With baseline and no Gemini key, paid-model tokens
+remain zero, but the sixth request still triggers the user-limit alert. If
+production auth is enabled, set `INSPECTION_API_KEY` in the process environment
+for the script. Use a disposable staging database/user because usage counters
+persist for the current day.
 
 Screenshots: `docs/img/` contains a TODO for a person to capture the dashboard;
 no screenshots are claimed as verified here. Starting the Grafana stack and

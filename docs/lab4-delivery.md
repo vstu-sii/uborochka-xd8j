@@ -8,7 +8,7 @@
 | Staging повторяет prod-образ и Compose-сервисы, изолируя порты, БД и volume | `compose.yml`, `compose.staging.yml`, `docs/environments.md` | `docker compose -f compose.yml -f compose.staging.yml config` |
 | Дашборд показывает запросы/ошибки/latency, usage, логи и ссылку на трейсы | `monitoring/`, `monitoring/grafana/dashboards/uborochka.json` | Поднять monitoring compose и открыть Grafana; см. `monitoring/README.md` |
 | Дневные лимиты запросов/токенов и месячный бюджет хранятся в PostgreSQL | `backend/limits/`, `database/migrations/0003_usage_limits.sql` | `pytest -q tests/test_limits_and_guards.py`; интеграционный staging-прогон описан в `monitoring/README.md` |
-| Токены выше 80% дневного лимита переводят модель на fallback; аномалия создаёт alert | `backend/providers.py`, Grafana alert provisioning, `scripts/simulate_anomaly.py`, ADR | `API_BASE_URL=http://localhost:8000 python scripts/simulate_anomaly.py` с параметрами из README мониторинга |
+| Аномальный расход токенов и срабатывание пользовательских лимитов имеют независимые Grafana alerts | `monitoring/grafana/provisioning/alerting/alerts.yml`, `scripts/simulate_anomaly.py` | Gemini включён: проверка токенов; baseline без ключа: шестой запрос срабатывает на alert лимита. Параметры и расчёт порога — `monitoring/README.md` |
 | Модель не выполняет операции; приложение проверяет allow-list перед записью | `backend/guards/`, `src/storage.py` | `pytest -q tests/test_limits_and_guards.py` |
 | `/metrics` публикует HTTP, model, token, limit и guard metrics | `backend/observability.py`, `src/main.py` | `curl -fsS http://localhost:8000/metrics` |
 | Структурированные события выводятся в stdout; FastAPI и `llm.call` spans экспортируются в Tempo | `src/main.py`, `backend/providers.py`, `monitoring/` | Смотреть Docker logs и Tempo после запуска monitoring compose |
@@ -27,6 +27,9 @@
 - [ ] Grafana dashboard понятен оператору; метрики, логи и трейсы поступают.
 - [ ] Скрипт аномалии вызывает token alert и HTTP 429 на отдельной staging
   базе/пользователе.
+- [ ] При baseline без Gemini шестой запрос вызывает alert «Сработали лимиты
+  пользователя»; с Gemini пять успешных ответов превышают smoke-test порог
+  токенов `> 1` в пятиминутном окне.
 - [ ] Compose поднимается на чистой машине.
 
 **Не проверено, нужна проверка человеком:** подключение к Render/GitHub
