@@ -3,7 +3,6 @@
 Start the app, PostgreSQL, Prometheus, Loki, Tempo, Alloy and Grafana:
 
 ```bash
-cp monitoring/metrics_token.example monitoring/metrics_token
 docker compose -f compose.yml -f monitoring/compose.monitoring.yml up --build
 ```
 
@@ -19,11 +18,18 @@ The Prometheus scrape is unauthenticated by default; the application's
 authentication, copy `monitoring/metrics_token.example` to the ignored
 `monitoring/metrics_token`, replace its contents with the token, and set the
 same value as `METRICS_TOKEN` in the ignored `.env` (or `.env.staging`).
-Uncomment the `authorization` block in `monitoring/prometheus.yml` and restart
-Prometheus. Compose mounts the local `monitoring/metrics_token` file read-only
-at `/etc/prometheus/metrics_token`; the token is not passed as an environment
-variable or written to Prometheus configuration. The example contains only
-comments, so copying it is also safe when scraping without authentication.
+Uncomment the `authorization` block in `monitoring/prometheus.yml` and start
+the stack with the optional auth override:
+
+```bash
+docker compose -f compose.yml -f monitoring/compose.monitoring.yml \
+  -f monitoring/compose.metrics-auth.yml up --build
+```
+
+Only this override mounts the local `monitoring/metrics_token` file read-only
+at `/etc/prometheus/metrics_token`; the default monitoring stack does not
+require that local file. The token is not passed as an environment variable or
+written to Prometheus configuration. The example contains comments only.
 
 The dashboard includes request rate/errors/p95 latency, model calls and token
 rates, limit and guard events, and recent Docker logs. The dashboard header

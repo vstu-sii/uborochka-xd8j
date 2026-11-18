@@ -15,12 +15,12 @@ monitoring Compose Prometheus скрейпит его без авторизац�
 Чтобы включить Bearer auth, задайте `METRICS_TOKEN` приложению в игнорируемом
 `.env`/`.env.staging`, скопируйте `monitoring/metrics_token.example` в
 игнорируемый `monitoring/metrics_token` с тем же значением и раскомментируйте
-`authorization.credentials_file` в `monitoring/prometheus.yml`. Compose
-монтирует локальный `monitoring/metrics_token` read-only в
-`/etc/prometheus/metrics_token`; токен не подставляется через env в
-конфигурацию Prometheus. Для запуска monitoring Compose без авторизации
-тоже сначала скопируйте example-файл: его комментарии безопасны, а блок
-авторизации по умолчанию закомментирован.
+`authorization.credentials_file` в `monitoring/prometheus.yml`. Запускайте
+с дополнительным override `monitoring/compose.metrics-auth.yml`, который
+монтирует локальный файл read-only в `/etc/prometheus/metrics_token`.
+Токен не подставляется через env в конфигурацию Prometheus. Без авторизации
+используется только `monitoring/compose.monitoring.yml`, и файл
+`monitoring/metrics_token` создавать не нужно.
 
 Staging повторяет локальный Compose и production Docker image; отличаются
 только `APP_ENV`/`ENVIRONMENT`, имена БД и тома, внешние порты, а также конфигурация

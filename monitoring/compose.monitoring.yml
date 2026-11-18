@@ -15,12 +15,6 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - type: bind
-        source: ./monitoring/metrics_token
-        target: /etc/prometheus/metrics_token
-        read_only: true
-        bind:
-          create_host_path: false
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     networks:
