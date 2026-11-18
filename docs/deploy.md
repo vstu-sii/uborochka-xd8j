@@ -38,8 +38,11 @@ pinned requirements, runs Ruff, Black, and pytest, then builds the Docker
 image. Only after those jobs succeed does it call the Render Deploy Hook.
 Finally, it polls `/health` up to 30 times with a 10-second curl timeout and
 10-second intervals (about ten minutes total), which allows a free instance
-to wake up. A failed hook or health check makes the workflow fail. The hook
-response body is discarded so the secret URL is not printed.
+to wake up. Each successful response must report the deployed commit in
+`commit`, supplied by Render's `RENDER_GIT_COMMIT`; this prevents an old,
+already-healthy deployment from passing the smoke check. A missing or
+mismatched commit after the retries fails the workflow. The hook response body
+is discarded so the secret URL is not printed.
 
 Required repository secret:
 
@@ -61,9 +64,9 @@ RENDER_DEPLOY_HOOK_URL='(set privately in your shell)' \
 
 Or open **Actions → Roll back production → Run workflow** and enter the SHA.
 The SHA is validated and sent as the URL-encoded `ref` query parameter. The
-script discards the hook response body and prints no hook URL. After the hook
-accepts the request, verify the Render deploy status and `/health` manually;
-the rollback workflow confirms request acceptance, not service recovery.
+script discards the hook response body and prints no hook URL. The rollback
+workflow waits until `/health` reports a commit beginning with the requested
+SHA; if the SHA never becomes healthy, the workflow fails.
 
 **Не проверено, нужна проверка человеком:** Render secrets/service settings,
 live production deployment, and an actual rollback rehearsal are not available

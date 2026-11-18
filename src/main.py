@@ -149,7 +149,7 @@ def health() -> dict:
             status_code=503,
             detail="База данных временно недоступна.",
         ) from error
-    return {"status": "healthy"}
+    return {"status": "healthy", "commit": os.getenv("RENDER_GIT_COMMIT") or None}
 
 
 @app.post("/inspection")

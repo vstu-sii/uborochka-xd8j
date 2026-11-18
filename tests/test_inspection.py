@@ -108,6 +108,22 @@ def test_health_returns_unavailable_without_database(monkeypatch) -> None:
     assert "Хранилище не настроено" in response.json()["detail"]
 
 
+def test_health_includes_render_commit_or_null(monkeypatch) -> None:
+    monkeypatch.setattr("src.main.check_database", lambda: None)
+    monkeypatch.delenv("RENDER_GIT_COMMIT", raising=False)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "healthy", "commit": None}
+
+    monkeypatch.setenv("RENDER_GIT_COMMIT", "abc123")
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["commit"] == "abc123"
+
+
 def test_inspection_returns_429_when_usage_limit_is_reached(monkeypatch) -> None:
     from backend.limits.service import UsageLimitExceeded
 

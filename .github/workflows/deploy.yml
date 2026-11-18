@@ -48,15 +48,21 @@ jobs:
           curl --fail --silent --show-error --output /dev/null \
             --max-time 30 "$RENDER_DEPLOY_HOOK_URL"
       - name: Wait for production health check
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
         run: |
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error --output /dev/null \
-              --max-time 10 https://uborochka-xd8j.onrender.com/health; then
-              echo "Production health check succeeded."
+            response=$(curl --fail --silent --show-error \
+              --max-time 10 https://uborochka-xd8j.onrender.com/health) || response=""
+            commit=$(printf '%s' "$response" | python -c \
+              'import json,sys; print(json.load(sys.stdin).get("commit") or "")' \
+              2>/dev/null) || commit=""
+            if [ "$commit" = "$EXPECTED_COMMIT" ]; then
+              echo "Production reports the expected commit."
               exit 0
             fi
-            echo "Health check attempt ${attempt}/30 failed; waiting 10 seconds."
+            echo "Health check attempt ${attempt}/30 reports an unexpected commit; waiting 10 seconds."
             sleep 10
           done
-          echo "Production did not become healthy after 30 attempts." >&2
+          echo "Production did not report the expected commit after 30 attempts." >&2
           exit 1
