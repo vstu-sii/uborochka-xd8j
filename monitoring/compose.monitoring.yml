@@ -10,8 +10,11 @@ services:
     image: prom/prometheus:v2.55.1
     command:
       - --config.file=/etc/prometheus/prometheus.yml
+      - --config.expand-env
       - --storage.tsdb.path=/prometheus
       - --web.enable-lifecycle
+    environment:
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
     ports:
       - "9090:9090"
     volumes:

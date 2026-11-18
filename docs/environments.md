@@ -10,6 +10,12 @@
 | Провайдер модели | baseline-эвристика (Pillow); Gemini выключен | baseline-эвристика (Pillow); Gemini выключен | baseline-эвристика (Pillow), Gemini опционально |
 | Уровень логов | `INFO` | `INFO` | `INFO` (Render env) |
 
+`/metrics` остаётся открытым, когда `METRICS_TOKEN` не задан. Для защищённого
+endpoint задайте один и тот же `METRICS_TOKEN` приложению и Prometheus в
+локальном `.env`, staging env или Render. Prometheus передаёт значение как
+`Authorization: Bearer ...`; не добавляйте токен в конфигурационные файлы или
+логи.
+
 Staging повторяет локальный Compose и production Docker image; отличаются
 только `APP_ENV`/`ENVIRONMENT`, имена БД и тома, внешние порты, а также конфигурация
 секретов и ресурсов. Отдельная БД и именованный том не дают тестовым

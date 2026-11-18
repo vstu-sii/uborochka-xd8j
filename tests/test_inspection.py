@@ -211,7 +211,8 @@ def test_four_megabyte_photo_passes_default_token_reservation(monkeypatch) -> No
     assert reconciliations == [(TOKEN_RESERVATION_PER_IMAGE, 0)]
 
 
-def test_metrics_endpoint_exposes_request_and_usage_metrics() -> None:
+def test_metrics_endpoint_exposes_request_and_usage_metrics(monkeypatch) -> None:
+    monkeypatch.delenv("METRICS_TOKEN", raising=False)
     client.get("/")
     response = client.get("/metrics")
 
@@ -224,6 +225,21 @@ def test_metrics_endpoint_exposes_request_and_usage_metrics() -> None:
     assert "model_tokens_total" in response.text
     assert "limit_triggers_total" in response.text
     assert "guard_denied_total" in response.text
+
+
+def test_metrics_endpoint_requires_bearer_token_when_configured(monkeypatch) -> None:
+    monkeypatch.setenv("METRICS_TOKEN", "metrics-test-secret")
+
+    missing = client.get("/metrics")
+    wrong = client.get("/metrics", headers={"Authorization": "Bearer wrong-secret"})
+    authorized = client.get(
+        "/metrics", headers={"Authorization": "Bearer metrics-test-secret"}
+    )
+
+    assert missing.status_code == 401
+    assert wrong.status_code == 401
+    assert authorized.status_code == 200
+    assert "http_requests_total" in authorized.text
 
 
 def test_production_inspection_requires_application_api_key(monkeypatch) -> None:

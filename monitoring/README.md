@@ -11,7 +11,9 @@ local-only stack), then open the provisioned **Уборочка — Production
 overview** dashboard. Prometheus is available at <http://localhost:9090>,
 Loki at <http://localhost:3100>, and Tempo at <http://localhost:3200>.
 Configure `GRAFANA_ADMIN_PASSWORD` in the shell or an ignored `.env` before
-sharing this stack.
+sharing this stack. If `METRICS_TOKEN` is configured for the API, place the
+same value in the ignored `.env`; Compose passes it to Prometheus, which
+authenticates its `/metrics` scrape with a Bearer token.
 
 The dashboard includes request rate/errors/p95 latency, model calls and token
 rates, limit and guard events, and recent Docker logs. The dashboard header

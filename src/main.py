@@ -1,5 +1,6 @@
 """FastAPI application for the cleaning assessment prototype."""
 
+import hmac
 import json
 import logging
 import os
@@ -131,7 +132,22 @@ def root() -> FileResponse:
 
 
 @app.get("/metrics", include_in_schema=False)
-def metrics() -> Response:
+def metrics(request: Request) -> Response:
+    expected_token = os.getenv("METRICS_TOKEN")
+    if expected_token:
+        scheme, separator, supplied_token = request.headers.get(
+            "Authorization", ""
+        ).partition(" ")
+        if (
+            not separator
+            or scheme.lower() != "bearer"
+            or not hmac.compare_digest(supplied_token.encode(), expected_token.encode())
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Для доступа к метрикам требуется авторизация.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
