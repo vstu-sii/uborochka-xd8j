@@ -12,6 +12,7 @@ from PIL import Image
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
 MAID_ID = os.getenv("MAID_ID", "anomaly-test-user")
 ROOM_ID = os.getenv("ROOM_ID", "anomaly-test-room")
+INSPECTION_API_KEY = os.getenv("INSPECTION_API_KEY")
 
 
 def create_test_image() -> bytes:
@@ -37,10 +38,11 @@ def main() -> int:
             b'Content-Disposition: form-data; name="photo"; filename="anomaly.png"\r\n'
             b"Content-Type: image/png\r\n\r\n" + photo + b"\r\n--boundary--\r\n"
         )
+        headers = {"Content-Type": "multipart/form-data; boundary=boundary"}
+        if INSPECTION_API_KEY:
+            headers["X-API-Key"] = INSPECTION_API_KEY
         request = urllib.request.Request(
-            f"{API_BASE_URL}/inspection",
-            data=body,
-            headers={"Content-Type": "multipart/form-data; boundary=boundary"},
+            f"{API_BASE_URL}/inspection", data=body, headers=headers
         )
         try:
             with urllib.request.urlopen(request, timeout=60) as response:

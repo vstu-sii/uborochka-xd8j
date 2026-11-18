@@ -19,20 +19,25 @@ links to Tempo traces. FastAPI spans and the nested `llm.call` span are exported
 to Tempo over OTLP gRPC. Prometheus scrapes `/metrics`; Alloy tails Docker JSON
 logs and forwards them to Loki.
 
-Grafana provisions a warning when total model-token usage rises above 100,000
-tokens in five minutes. To reproduce it locally, configure
-`DAILY_REQUEST_LIMIT=5`, `DAILY_TOKEN_LIMIT=5000000`, and
-`MONTHLY_BUDGET_USD=10`, then run:
+Grafana provisions an alert when a paid model reports any tokens in five
+minutes (`increase(model_tokens_total[5m]) > 0`). This avoids assuming a fixed
+token count for an image: Gemini usage metadata is the source of truth.
+The anomaly script succeeds on the first five requests (daily request limit
+5) and expects HTTP 429 on request six. For the alert, enable Gemini and provide
+its API key; baseline-эвристика (Pillow) reports zero tokens and will not
+trigger a paid-model token alert. Configure `DAILY_REQUEST_LIMIT=5`,
+`DAILY_TOKEN_LIMIT=5000000`, and `MONTHLY_BUDGET_USD=10`, then run:
 
 ```bash
 API_BASE_URL=http://localhost:8000 python scripts/simulate_anomaly.py
 ```
 
-The script sends five large-but-valid PNG requests followed by one request
-expected to receive HTTP 429. The five successful model calls exceed the
-100,000-token alert threshold while remaining below the daily token limit.
-Use a disposable staging database/user because the usage counters persist for
-the current day.
+The fixed pre-call reservation is 1,000 tokens per image; after a Gemini call,
+it is reconciled to `usage_metadata.total_token_count`. Five typical requests
+remain below the 5,000,000-token limit; the sixth is rejected by the request
+limit before invoking Gemini. If production auth is enabled, set
+`INSPECTION_API_KEY` in the process environment for the script. Use a disposable
+staging database/user because the usage counters persist for the current day.
 
 Screenshots: `docs/img/` contains a TODO for a person to capture the dashboard;
 no screenshots are claimed as verified here. Starting the Grafana stack and

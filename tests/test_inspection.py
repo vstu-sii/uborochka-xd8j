@@ -14,6 +14,13 @@ def make_png() -> bytes:
     return buffer.getvalue()
 
 
+def make_large_jpeg() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (64, 64), (200, 200, 200)).save(buffer, format="JPEG")
+    image = buffer.getvalue()
+    return image + b"\0" * (4 * 1024 * 1024 - len(image))
+
+
 def test_root_serves_prototype() -> None:
     response = client.get("/")
 
@@ -148,6 +155,44 @@ def test_inspection_uses_fallback_at_eighty_percent(monkeypatch) -> None:
     assert response.status_code == 200
     assert call["use_fallback"] is True
     assert response.json()["result"]["degraded"] is True
+
+
+def test_four_megabyte_photo_passes_default_token_reservation(monkeypatch) -> None:
+    from backend.limits.service import TOKEN_RESERVATION_PER_IMAGE
+    from src.vision.analyze import CleaningAssessment
+
+    reservations = []
+    reconciliations = []
+    monkeypatch.delenv("DAILY_TOKEN_LIMIT", raising=False)
+    monkeypatch.setattr(
+        "src.main.reserve_usage",
+        lambda _user, tokens: reservations.append(tokens),
+    )
+    monkeypatch.setattr("src.main.token_usage_ratio", lambda *_args: 0.0)
+    monkeypatch.setattr(
+        "src.main.add_usage_tokens",
+        lambda _user, reserved, actual: reconciliations.append((reserved, actual)),
+    )
+    monkeypatch.setattr(
+        "src.main.analyze_with_degradation",
+        lambda *_args, **_kwargs: (
+            CleaningAssessment(8, ["OK"], "medium", "baseline-heuristic-v1", False),
+            False,
+            0.01,
+            "baseline",
+        ),
+    )
+    monkeypatch.setattr("src.main.create_assessment", lambda **_kwargs: {"id": 44})
+
+    response = client.post(
+        "/inspection",
+        data={"room_id": "room-101", "maid_id": "large-photo-user"},
+        files={"photo": ("room.jpg", make_large_jpeg(), "image/jpeg")},
+    )
+
+    assert response.status_code == 200
+    assert reservations == [TOKEN_RESERVATION_PER_IMAGE]
+    assert reconciliations == [(TOKEN_RESERVATION_PER_IMAGE, 0)]
 
 
 def test_metrics_endpoint_exposes_request_and_usage_metrics() -> None:

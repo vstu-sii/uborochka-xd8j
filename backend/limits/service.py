@@ -8,6 +8,7 @@ import psycopg
 from backend.observability import LIMIT_TRIGGERS_TOTAL
 
 TOKEN_COST_USD = Decimal("0.0000001")
+TOKEN_RESERVATION_PER_IMAGE = 1000
 
 
 class UsageLimitExceeded(Exception):
@@ -115,9 +116,13 @@ def reserve_usage(
 
 
 def add_usage_tokens(
-    user_key: str, actual_tokens: int, *, today: date | None = None
+    user_key: str,
+    reserved_tokens: int,
+    actual_tokens: int,
+    *,
+    today: date | None = None,
 ) -> None:
-    """Record additional output tokens and charge the configured monthly estimate."""
+    """Replace the per-image reservation with provider-reported token usage."""
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise UsageStorageUnavailable("DATABASE_URL is not set")
@@ -125,7 +130,10 @@ def add_usage_tokens(
     usage_month = usage_day.replace(day=1)
     limits = UsageLimits.from_environment()
     tokens = max(0, actual_tokens)
-    cost = TOKEN_COST_USD * tokens
+    reservation = max(0, reserved_tokens)
+    delta = tokens - reservation
+    cost_delta = TOKEN_COST_USD * delta
+    limit_exceeded = None
 
     with psycopg.connect(database_url) as connection:
         daily = connection.execute(
@@ -144,24 +152,33 @@ def add_usage_tokens(
         ).fetchone()
         if daily is None or monthly is None:
             raise RuntimeError("Usage reservation must exist before recording tokens")
-        if daily[0] + tokens > limits.daily_tokens:
-            _raise_limit("daily_tokens", "Достигнут дневной лимит токенов.")
-        if monthly[0] + cost > limits.monthly_budget_usd:
-            _raise_limit("monthly_budget", "Достигнут месячный бюджет модели.")
+        if daily[0] + delta > limits.daily_tokens:
+            limit_exceeded = (
+                "daily_tokens",
+                "Достигнут дневной лимит токенов.",
+            )
+        elif monthly[0] + cost_delta > limits.monthly_budget_usd:
+            limit_exceeded = (
+                "monthly_budget",
+                "Достигнут месячный бюджет модели.",
+            )
         connection.execute(
             """
             UPDATE daily_usage SET token_count = token_count + %s
             WHERE user_key = %s AND usage_date = %s
             """,
-            (tokens, user_key, usage_day),
+            (delta, user_key, usage_day),
         )
         connection.execute(
             """
             UPDATE monthly_usage SET estimated_cost_usd = estimated_cost_usd + %s
             WHERE user_key = %s AND usage_month = %s
             """,
-            (cost, user_key, usage_month),
+            (cost_delta, user_key, usage_month),
         )
+
+    if limit_exceeded:
+        _raise_limit(*limit_exceeded)
 
 
 def token_usage_ratio(user_key: str, *, today: date | None = None) -> float:

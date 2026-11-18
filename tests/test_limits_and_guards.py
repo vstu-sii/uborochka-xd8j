@@ -4,7 +4,14 @@ from decimal import Decimal
 import pytest
 
 from backend.guards.actions import GuardDenied, authorize_action, authorize_caller
-from backend.limits.service import UsageLimitExceeded, reserve_usage, token_usage_ratio
+from backend.limits.service import (
+    TOKEN_COST_USD,
+    TOKEN_RESERVATION_PER_IMAGE,
+    UsageLimitExceeded,
+    add_usage_tokens,
+    reserve_usage,
+    token_usage_ratio,
+)
 
 
 class Cursor:
@@ -102,6 +109,41 @@ def test_daily_token_limit_and_new_day_reset(usage_db):
 
     reserve_usage("user-1", 15, today=next_day)
     assert token_usage_ratio("user-1", today=next_day) == 0.75
+
+
+def test_baseline_usage_reconciles_reservation_to_zero(usage_db, monkeypatch):
+    import io
+
+    from PIL import Image
+
+    from backend.providers import BaselineProvider
+
+    monkeypatch.setenv("DAILY_TOKEN_LIMIT", "100000")
+    today = date(2026, 11, 17)
+    photo = io.BytesIO()
+    Image.new("RGB", (32, 32), (180, 180, 180)).save(photo, format="PNG")
+    assessment = BaselineProvider().analyze(photo.getvalue())
+    assert assessment.tokens_used == 0
+
+    reserve_usage("baseline-user", TOKEN_RESERVATION_PER_IMAGE, today=today)
+
+    add_usage_tokens(
+        "baseline-user",
+        TOKEN_RESERVATION_PER_IMAGE,
+        assessment.tokens_used,
+        today=today,
+    )
+
+    assert usage_db.daily[("baseline-user", today)] == [1, 0]
+    assert usage_db.monthly[("baseline-user", today.replace(day=1))] == Decimal(0)
+    assert TOKEN_COST_USD * usage_db.daily[("baseline-user", today)][1] == Decimal(0)
+
+
+def test_default_token_limit_accepts_fixed_image_reservation(usage_db, monkeypatch):
+    monkeypatch.delenv("DAILY_TOKEN_LIMIT")
+    reserve_usage("large-photo-user", TOKEN_RESERVATION_PER_IMAGE)
+
+    assert usage_db.daily[("large-photo-user", date.today())][1] == 1000
 
 
 def test_guard_allows_only_declared_application_actions():

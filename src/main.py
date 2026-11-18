@@ -22,6 +22,7 @@ from backend.guards.actions import GuardDenied, authorize_caller
 from backend.limits.service import (
     UsageLimitExceeded,
     UsageStorageUnavailable,
+    TOKEN_RESERVATION_PER_IMAGE,
     add_usage_tokens,
     reserve_usage,
     token_usage_ratio,
@@ -194,14 +195,14 @@ async def inspect_photo(
             status_code=503, detail="Провайдер модели не настроен."
         ) from error
 
-    estimated_tokens = max(1, (len(image_bytes) + 3) // 4)
+    estimated_tokens = TOKEN_RESERVATION_PER_IMAGE
     try:
         reserve_usage(maid_id, estimated_tokens)
         degraded = token_usage_ratio(maid_id) >= 0.8
         assessment, degraded, _, provider_name = analyze_with_degradation(
             image_bytes, use_fallback=degraded
         )
-        add_usage_tokens(maid_id, max(0, assessment.tokens_used - estimated_tokens))
+        add_usage_tokens(maid_id, estimated_tokens, assessment.tokens_used)
     except UsageLimitExceeded as error:
         logger.warning(
             "usage_limit_triggered",

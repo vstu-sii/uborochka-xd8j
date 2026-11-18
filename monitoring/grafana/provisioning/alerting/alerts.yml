@@ -7,7 +7,7 @@ groups:
     interval: 1m
     rules:
       - uid: uborochka-token-spike
-        title: Token usage spike
+        title: Paid model token usage detected
         condition: B
         data:
           - refId: A
@@ -33,7 +33,7 @@ groups:
               datasource:
                 type: __expr__
                 uid: __expr__
-              expression: $A > 100000
+              expression: $A > 0
               refId: B
               type: math
               intervalMs: 1000
@@ -42,7 +42,7 @@ groups:
         execErrState: Error
         for: 0s
         annotations:
-          summary: Token usage exceeded 100000 in five minutes
-          description: Investigate unusual model traffic in the Uborochka dashboard.
+          summary: A model call used tokens in the last five minutes
+          description: Confirm this usage is expected in the Uborochka dashboard.
         labels:
           severity: warning

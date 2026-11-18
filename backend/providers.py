@@ -146,7 +146,7 @@ def _call_provider(
             ).inc()
             raise
         latency = time.perf_counter() - started
-        tokens = assessment.tokens_used or max(1, (len(photo) + 3) // 4)
+        tokens = max(0, assessment.tokens_used)
         assessment.tokens_used = tokens
         span.set_attribute("latency", latency)
         span.set_attribute("tokens", tokens)
