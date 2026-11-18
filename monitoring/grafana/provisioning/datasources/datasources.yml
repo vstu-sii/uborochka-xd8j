@@ -30,9 +30,9 @@ datasources:
     jsonData:
       tracesToLogsV2:
         datasourceUid: loki
-        spanStartTimeShift: 1h
-        spanEndTimeShift: 1h
-        filterByTraceID: true
+        spanStartTimeShift: -2s
+        spanEndTimeShift: 2s
+        filterByTraceID: false
         filterBySpanID: false
         customQuery: true
-        query: '{job="docker"} | json | trace_id="${__span.traceId}"'
+        query: '{job="docker"} | json | trace_id="${__trace.traceId}"'
