@@ -1,18 +1,26 @@
+import json
 import io
 import os
 import time
-from dataclasses import dataclass
-from typing import Protocol
+from dataclasses import dataclass, field
+from typing import Literal, Protocol
 
 from opentelemetry import trace
 from PIL import Image
+from pydantic import BaseModel, ValidationError
 
 from backend.observability import MODEL_CALLS_TOTAL, MODEL_TOKENS_TOTAL
 from src.vision.analyze import CleaningAssessment, analyze_photo
 
 tracer = trace.get_tracer(__name__)
 FALLBACK_MODEL = "baseline-heuristic-v1"
-GEMINI_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite"
+
+
+class GeminiAssessmentSchema(BaseModel):
+    score: int
+    recommendations: list[str]
+    confidence: Literal["low", "medium", "high"]
 
 
 class ProviderUnavailable(RuntimeError):
@@ -43,7 +51,9 @@ class BaselineProvider:
 class GeminiFlashLiteProvider:
     api_key: str
     name: str = "gemini"
-    model: str = GEMINI_MODEL
+    model: str = field(
+        default_factory=lambda: os.getenv("GEMINI_MODEL") or DEFAULT_GEMINI_MODEL
+    )
 
     def analyze(self, photo: bytes) -> CleaningAssessment:
         from google import genai
@@ -61,28 +71,28 @@ class GeminiFlashLiteProvider:
                     image,
                 ],
                 config=types.GenerateContentConfig(
-                    response_mime_type="application/json"
+                    response_mime_type="application/json",
+                    response_schema=GeminiAssessmentSchema,
                 ),
             )
         except APIError as error:
             raise ProviderUnavailable("Gemini request failed") from error
-        result = response.parsed
-        if not isinstance(result, dict):
-            raise ProviderUnavailable("Gemini returned an invalid assessment")
         try:
-            score = int(result["score"])
-            recommendations = result["recommendations"]
-            if not isinstance(recommendations, list):
-                raise TypeError("recommendations must be a list")
-        except (KeyError, TypeError, ValueError) as error:
+            if response.parsed is not None:
+                result = GeminiAssessmentSchema.model_validate(response.parsed)
+            elif response.text:
+                result = GeminiAssessmentSchema.model_validate_json(response.text)
+            else:
+                raise ValueError("Gemini response did not contain structured output")
+        except (ValidationError, ValueError, json.JSONDecodeError) as error:
             raise ProviderUnavailable(
                 "Gemini returned an invalid assessment"
             ) from error
         usage = response.usage_metadata
         return CleaningAssessment(
-            score=max(1, min(10, score)),
-            recommendations=[str(item) for item in recommendations],
-            confidence=str(result.get("confidence", "low")),
+            score=max(1, min(10, result.score)),
+            recommendations=result.recommendations,
+            confidence=result.confidence,
             model_used=self.model,
             is_demo=False,
             tokens_used=int(getattr(usage, "total_token_count", 0) or 0),

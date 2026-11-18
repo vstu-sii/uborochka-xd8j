@@ -173,7 +173,7 @@ def test_enabled_gemini_provider_uses_mock_without_network(monkeypatch):
 
     class MockGeminiProvider:
         name = "gemini"
-        model = "gemini-2.5-flash-lite"
+        model = "gemini-3.1-flash-lite"
 
         def __init__(self, api_key):
             assert api_key == "test-key"
@@ -200,7 +200,7 @@ def test_provider_failure_calls_baseline_fallback(monkeypatch):
 
     class FailingGeminiProvider:
         name = "gemini"
-        model = "gemini-2.5-flash-lite"
+        model = "gemini-3.1-flash-lite"
 
         def __init__(self, api_key):
             pass
@@ -235,3 +235,56 @@ def test_enabled_gemini_without_key_fails_explicitly(monkeypatch):
 
     with pytest.raises(providers.ProviderConfigurationError):
         providers.validate_provider_configuration()
+
+
+def test_gemini_parses_text_when_sdk_parsed_is_none(monkeypatch):
+    import io
+    from types import SimpleNamespace
+
+    from google import genai
+    from PIL import Image
+
+    from backend.providers import (
+        DEFAULT_GEMINI_MODEL,
+        GeminiAssessmentSchema,
+        GeminiFlashLiteProvider,
+    )
+
+    response = SimpleNamespace(
+        parsed=None,
+        text='{"score": 9, "recommendations": ["Убрано"], "confidence": "high"}',
+        usage_metadata=SimpleNamespace(total_token_count=37),
+    )
+    call = {}
+
+    class Models:
+        def generate_content(self, **kwargs):
+            call.update(kwargs)
+            return response
+
+    class Client:
+        def __init__(self, *, api_key):
+            assert api_key == "test-key"
+            self.models = Models()
+
+    monkeypatch.setattr(genai, "Client", Client)
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    image = io.BytesIO()
+    Image.new("RGB", (16, 16), (120, 120, 120)).save(image, format="PNG")
+
+    assessment = GeminiFlashLiteProvider(api_key="test-key").analyze(image.getvalue())
+
+    assert assessment.score == 9
+    assert assessment.recommendations == ["Убрано"]
+    assert assessment.confidence == "high"
+    assert assessment.tokens_used == 37
+    assert call["model"] == DEFAULT_GEMINI_MODEL == "gemini-3.1-flash-lite"
+    assert call["config"].response_schema is GeminiAssessmentSchema
+
+
+def test_gemini_model_can_be_configured_from_environment(monkeypatch):
+    from backend.providers import GeminiFlashLiteProvider
+
+    monkeypatch.setenv("GEMINI_MODEL", "custom-gemini-model")
+
+    assert GeminiFlashLiteProvider(api_key="test-key").model == "custom-gemini-model"

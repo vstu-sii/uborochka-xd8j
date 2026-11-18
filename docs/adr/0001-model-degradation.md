@@ -15,9 +15,10 @@
 
 - Контракт `ModelProvider.analyze(photo) -> CleaningAssessment` расположен в
   `backend/providers.py`.
-- Gemini Flash-Lite (`gemini-2.5-flash-lite`) — опциональный primary:
-  активируется только при `GEMINI_ENABLED=true` и наличии
-  `GEMINI_API_KEY`.
+- Gemini Flash-Lite (`gemini-3.1-flash-lite` по умолчанию) — опциональный
+  primary: активируется только при `GEMINI_ENABLED=true` и наличии
+  `GEMINI_API_KEY`. Имя можно переопределить через `GEMINI_MODEL`.
+  [Google AI указывает поддержку входных изображений и structured output](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-lite).
 - Fallback по умолчанию — локальная baseline-эвристика (Pillow),
   `baseline-heuristic-v1`. Она также используется, если Gemini недоступен.
 - Счётчики запросов и токенов хранятся отдельно по пользователю и календарной
