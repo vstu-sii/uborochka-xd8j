@@ -30,9 +30,9 @@ def test_root_serves_prototype() -> None:
 
 def test_inspection_calls_persistence_and_returns_assessment(monkeypatch) -> None:
     saved = {}
-    monkeypatch.setattr("src.main.reserve_usage", lambda *_args: None)
+    monkeypatch.setattr("src.main.reserve_usage", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("src.main.token_usage_ratio", lambda *_args: 0.0)
-    monkeypatch.setattr("src.main.add_usage_tokens", lambda *_args: None)
+    monkeypatch.setattr("src.main.add_usage_tokens", lambda *_args, **_kwargs: None)
 
     def fake_create_assessment(**kwargs):
         saved.update(kwargs)
@@ -130,7 +130,10 @@ def test_inspection_returns_429_when_usage_limit_is_reached(monkeypatch) -> None
     def reject_request(*_args):
         raise UsageLimitExceeded("daily_requests", "Достигнут дневной лимит запросов.")
 
-    monkeypatch.setattr("src.main.reserve_usage", reject_request)
+    monkeypatch.setattr(
+        "src.main.reserve_usage", lambda *_args, **_kwargs: reject_request()
+    )
+    monkeypatch.setattr("src.main.token_usage_ratio", lambda *_args: 0.0)
     response = client.post(
         "/inspection",
         data={"room_id": "room-101", "maid_id": "maid-001"},
@@ -146,9 +149,9 @@ def test_inspection_uses_fallback_at_eighty_percent(monkeypatch) -> None:
 
     saved = {}
     call = {}
-    monkeypatch.setattr("src.main.reserve_usage", lambda *_args: None)
+    monkeypatch.setattr("src.main.reserve_usage", lambda *_args, **_kwargs: None)
     monkeypatch.setattr("src.main.token_usage_ratio", lambda *_args: 0.8)
-    monkeypatch.setattr("src.main.add_usage_tokens", lambda *_args: None)
+    monkeypatch.setattr("src.main.add_usage_tokens", lambda *_args, **_kwargs: None)
 
     def fake_analyze(_photo, *, use_fallback):
         call["use_fallback"] = use_fallback
@@ -180,19 +183,25 @@ def test_four_megabyte_photo_passes_default_token_reservation(monkeypatch) -> No
     reservations = []
     reconciliations = []
     monkeypatch.delenv("DAILY_TOKEN_LIMIT", raising=False)
+    monkeypatch.setenv("GEMINI_ENABLED", "true")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
     monkeypatch.setattr(
         "src.main.reserve_usage",
-        lambda _user, tokens: reservations.append(tokens),
+        lambda _user, tokens, **_kwargs: reservations.append(tokens),
     )
     monkeypatch.setattr("src.main.token_usage_ratio", lambda *_args: 0.0)
     monkeypatch.setattr(
         "src.main.add_usage_tokens",
-        lambda _user, reserved, actual: reconciliations.append((reserved, actual)),
+        lambda _user, reserved, actual, **_kwargs: reconciliations.append(
+            (reserved, actual)
+        ),
     )
     monkeypatch.setattr(
         "src.main.analyze_with_degradation",
         lambda *_args, **_kwargs: (
-            CleaningAssessment(8, ["OK"], "medium", "baseline-heuristic-v1", False),
+            CleaningAssessment(
+                8, ["OK"], "medium", "gemini-3.1-flash-lite", False, 500
+            ),
             False,
             0.01,
             "baseline",
@@ -208,7 +217,7 @@ def test_four_megabyte_photo_passes_default_token_reservation(monkeypatch) -> No
 
     assert response.status_code == 200
     assert reservations == [TOKEN_RESERVATION_PER_IMAGE]
-    assert reconciliations == [(TOKEN_RESERVATION_PER_IMAGE, 0)]
+    assert reconciliations == [(TOKEN_RESERVATION_PER_IMAGE, 500)]
 
 
 def test_metrics_endpoint_exposes_request_and_usage_metrics(monkeypatch) -> None:

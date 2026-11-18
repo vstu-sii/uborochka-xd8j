@@ -36,6 +36,7 @@ from backend.observability import (
 from backend.providers import (
     ProviderConfigurationError,
     analyze_with_degradation,
+    primary_provider_enabled,
     validate_provider_configuration,
 )
 from src.storage import DatabaseNotConfigured, check_database, create_assessment
@@ -213,12 +214,21 @@ async def inspect_photo(
 
     estimated_tokens = TOKEN_RESERVATION_PER_IMAGE
     try:
-        reserve_usage(maid_id, estimated_tokens)
         degraded = token_usage_ratio(maid_id) >= 0.8
+        reserved_tokens = (
+            estimated_tokens if not degraded and primary_provider_enabled() else 0
+        )
+        budget_reservation = reserved_tokens
+        reserve_usage(maid_id, reserved_tokens, budget_reservation=budget_reservation)
         assessment, degraded, _, provider_name = analyze_with_degradation(
             image_bytes, use_fallback=degraded
         )
-        add_usage_tokens(maid_id, estimated_tokens, assessment.tokens_used)
+        add_usage_tokens(
+            maid_id,
+            reserved_tokens,
+            assessment.tokens_used,
+            budget_reservation=budget_reservation,
+        )
     except UsageLimitExceeded as error:
         logger.warning(
             "usage_limit_triggered",

@@ -45,9 +45,13 @@ class UsageLimits:
 
 
 def reserve_usage(
-    user_key: str, estimated_tokens: int, *, today: date | None = None
+    user_key: str,
+    estimated_tokens: int,
+    *,
+    budget_reservation: int = 0,
+    today: date | None = None,
 ) -> None:
-    """Atomically reserve one request and its estimated input tokens in PostgreSQL."""
+    """Atomically reserve one request and estimated provider usage in PostgreSQL."""
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
         raise UsageStorageUnavailable("DATABASE_URL is not set")
@@ -56,7 +60,8 @@ def reserve_usage(
     usage_month = usage_day.replace(day=1)
     limits = UsageLimits.from_environment()
     estimate = max(0, estimated_tokens)
-    cost = TOKEN_COST_USD * estimate
+    reserved_budget_tokens = max(0, budget_reservation)
+    cost = TOKEN_COST_USD * reserved_budget_tokens
 
     with psycopg.connect(database_url) as connection:
         connection.execute(
@@ -120,6 +125,7 @@ def add_usage_tokens(
     reserved_tokens: int,
     actual_tokens: int,
     *,
+    budget_reservation: int = 0,
     today: date | None = None,
 ) -> None:
     """Replace the per-image reservation with provider-reported token usage."""
@@ -132,7 +138,8 @@ def add_usage_tokens(
     tokens = max(0, actual_tokens)
     reservation = max(0, reserved_tokens)
     delta = tokens - reservation
-    cost_delta = TOKEN_COST_USD * delta
+    reserved_budget_tokens = max(0, budget_reservation)
+    cost_delta = TOKEN_COST_USD * (tokens - reserved_budget_tokens)
     limit_exceeded = None
 
     with psycopg.connect(database_url) as connection:

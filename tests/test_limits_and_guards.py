@@ -119,18 +119,20 @@ def test_baseline_usage_reconciles_reservation_to_zero(usage_db, monkeypatch):
     from backend.providers import BaselineProvider
 
     monkeypatch.setenv("DAILY_TOKEN_LIMIT", "100000")
+    monkeypatch.setenv("MONTHLY_BUDGET_USD", "0")
     today = date(2026, 11, 17)
     photo = io.BytesIO()
     Image.new("RGB", (32, 32), (180, 180, 180)).save(photo, format="PNG")
     assessment = BaselineProvider().analyze(photo.getvalue())
     assert assessment.tokens_used == 0
 
-    reserve_usage("baseline-user", TOKEN_RESERVATION_PER_IMAGE, today=today)
+    reserve_usage("baseline-user", 0, budget_reservation=0, today=today)
 
     add_usage_tokens(
         "baseline-user",
-        TOKEN_RESERVATION_PER_IMAGE,
+        0,
         assessment.tokens_used,
+        budget_reservation=0,
         today=today,
     )
 
@@ -141,7 +143,11 @@ def test_baseline_usage_reconciles_reservation_to_zero(usage_db, monkeypatch):
 
 def test_default_token_limit_accepts_fixed_image_reservation(usage_db, monkeypatch):
     monkeypatch.delenv("DAILY_TOKEN_LIMIT")
-    reserve_usage("large-photo-user", TOKEN_RESERVATION_PER_IMAGE)
+    reserve_usage(
+        "large-photo-user",
+        TOKEN_RESERVATION_PER_IMAGE,
+        budget_reservation=TOKEN_RESERVATION_PER_IMAGE,
+    )
 
     assert usage_db.daily[("large-photo-user", date.today())][1] == 1000
 

@@ -135,6 +135,12 @@ def validate_provider_configuration() -> None:
         )
 
 
+def primary_provider_enabled() -> bool:
+    return os.getenv("GEMINI_ENABLED", "false").lower() == "true" and bool(
+        os.getenv("GEMINI_API_KEY")
+    )
+
+
 def _call_provider(
     provider: ModelProvider, photo: bytes, *, degraded: bool
 ) -> tuple[CleaningAssessment, float]:
