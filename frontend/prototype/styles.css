@@ -105,6 +105,42 @@ body {
 
 .screen.active { display: flex; }
 
+.inspection-form {
+  display: grid;
+  gap: 12px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.inspection-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.inspection-form input,
+.inspection-form button,
+#retry-upload {
+  border: 1px solid #263340;
+  border-radius: 8px;
+  padding: 9px;
+  background: var(--tg-panel);
+  color: var(--text);
+  font: inherit;
+}
+
+.inspection-form button,
+#retry-upload {
+  background: var(--tg-accent);
+  color: #0b0f14;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.inspection-form button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
 .bubble {
   max-width: 80%;
   padding: 10px 12px;
@@ -137,10 +173,20 @@ body {
   font-size: 13px;
 }
 
+.uploaded-image {
+  display: block;
+  max-width: 220px;
+  max-height: 180px;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
 .bubble.result .score { font-size: 16px; margin-bottom: 6px; }
 .bubble.result .reco-title { font-weight: 600; margin-bottom: 4px; }
 .bubble.result ul { margin: 0; padding-left: 18px; }
 .bubble.result li { margin-bottom: 2px; }
+.demo-notice { color: #ffd166; font-size: 12px; }
+.request-id { color: var(--muted); font-size: 12px; }
 
 .bubble.error { background: #5a2b2b; }
 

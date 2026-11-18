@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.staging.example
 
 # Python
 __pycache__/
@@ -21,3 +22,6 @@ venv/
 # Логи и временные файлы
 *.log
 tmp/
+
+# Optional Prometheus scrape credential
+monitoring/metrics_token

@@ -1,0 +1,3 @@
+# Optional Bearer token used by Prometheus to scrape the protected /metrics endpoint.
+# Copy this file to metrics_token and replace this example with the same value as
+# METRICS_TOKEN in the application's ignored .env file. Never commit metrics_token.

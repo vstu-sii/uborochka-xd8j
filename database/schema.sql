@@ -1,11 +1,12 @@
 -- Уборочка: схема БД.
 -- Источник истины по структуре — docs/architecture/erd.puml.
 -- Этот файл описывает целевую схему; фактическое применение — через
--- миграции в database/migrations/ (первая миграция создаёт эти же таблицы).
+-- миграции в database/migrations/.
 
 CREATE TABLE IF NOT EXISTS users (
     id                BIGSERIAL PRIMARY KEY,
-    telegram_user_id  BIGINT NOT NULL UNIQUE,
+    telegram_user_id  BIGINT UNIQUE,
+    external_id       TEXT UNIQUE,
     username          TEXT,
     full_name         TEXT,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -14,10 +15,16 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS assessments (
     id                      BIGSERIAL PRIMARY KEY,
     user_id                 BIGINT NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    telegram_photo_file_id  TEXT NOT NULL,
+    telegram_photo_file_id  TEXT,
+    room_id                 TEXT,
+    maid_id                 TEXT,
+    image_name              TEXT,
     score                   SMALLINT CHECK (score BETWEEN 1 AND 10),
     status                  TEXT NOT NULL DEFAULT 'pending'
                                 CHECK (status IN ('pending', 'scored', 'failed')),
+    confidence              TEXT,
+    model_used              TEXT,
+    is_demo                 BOOLEAN NOT NULL DEFAULT false,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     scored_at               TIMESTAMPTZ
 );
@@ -34,3 +41,20 @@ CREATE TABLE IF NOT EXISTS recommendations (
 
 CREATE INDEX IF NOT EXISTS idx_recommendations_assessment_id
     ON recommendations (assessment_id);
+
+CREATE TABLE IF NOT EXISTS daily_usage (
+    user_key       TEXT NOT NULL,
+    usage_date     DATE NOT NULL,
+    request_count  INTEGER NOT NULL DEFAULT 0 CHECK (request_count >= 0),
+    token_count    BIGINT NOT NULL DEFAULT 0 CHECK (token_count >= 0),
+    PRIMARY KEY (user_key, usage_date)
+);
+
+CREATE TABLE IF NOT EXISTS monthly_usage (
+    user_key           TEXT NOT NULL,
+    usage_month        DATE NOT NULL,
+    estimated_cost_usd NUMERIC(12, 6) NOT NULL DEFAULT 0
+                       CHECK (estimated_cost_usd >= 0),
+    PRIMARY KEY (user_key, usage_month),
+    CHECK (EXTRACT(DAY FROM usage_month) = 1)
+);

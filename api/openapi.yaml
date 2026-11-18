@@ -42,17 +42,17 @@ paths:
                   result:
                     type: object
                     properties:
-                      checklist:
-                        type: object
-                      violations:
+                      recommendations:
                         type: array
+                        items:
+                          type: string
                       score:
                         type: integer
                       confidence:
                         type: string
                       model_used:
                         type: string
-                      cache_hit:
+                      is_demo:
                         type: boolean
         '400':
           description: Ошибка валидации
@@ -60,3 +60,7 @@ paths:
           description: Превышен лимит запросов
         '500':
           description: Ошибка сервера
+        '413':
+          description: Размер изображения превышает 10 МБ
+        '503':
+          description: База данных не настроена или недоступна

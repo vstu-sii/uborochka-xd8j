@@ -1,0 +1,68 @@
+name: Deploy production
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Ruff
+        run: python -m ruff check .
+      - name: Black
+        run: python -m black --check .
+      - name: Tests
+        run: python -m pytest -q
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t uborochka:${GITHUB_SHA} .
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          test -n "$RENDER_DEPLOY_HOOK_URL" || {
+            echo "RENDER_DEPLOY_HOOK_URL is not configured" >&2
+            exit 1
+          }
+          curl --fail --silent --show-error --output /dev/null \
+            --max-time 30 "$RENDER_DEPLOY_HOOK_URL"
+      - name: Wait for production health check
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: |
+          for attempt in $(seq 1 30); do
+            response=$(curl --fail --silent --show-error \
+              --max-time 10 https://uborochka-xd8j.onrender.com/health) || response=""
+            commit=$(printf '%s' "$response" | python -c \
+              'import json,sys; print(json.load(sys.stdin).get("commit") or "")' \
+              2>/dev/null) || commit=""
+            if [ "$commit" = "$EXPECTED_COMMIT" ]; then
+              echo "Production reports the expected commit."
+              exit 0
+            fi
+            echo "Health check attempt ${attempt}/30 reports an unexpected commit; waiting 10 seconds."
+            sleep 10
+          done
+          echo "Production did not report the expected commit after 30 attempts." >&2
+          exit 1

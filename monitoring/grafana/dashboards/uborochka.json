@@ -1,0 +1,99 @@
+{
+  "id": null,
+  "uid": "uborochka-production",
+  "title": "Уборочка — Production overview",
+  "tags": ["uborochka", "production"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {"from": "now-1h", "to": "now"},
+  "links": [
+    {
+      "title": "Открыть трассы в Tempo",
+      "type": "link",
+      "url": "/explore?left=%7B%22datasource%22%3A%22tempo%22%2C%22queries%22%3A%5B%7B%22queryType%22%3A%22traceql%22%2C%22query%22%3A%22%7Bresource.service.name%3D%5C%22uborochka-api%5C%22%7D%22%2C%22refId%22%3A%22A%22%7D%5D%2C%22range%22%3A%7B%22from%22%3A%22now-1h%22%2C%22to%22%3A%22now%22%7D%7D",
+      "targetBlank": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Запросы в секунду",
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (endpoint) (rate(http_requests_total[5m]))", "legendFormat": "{{endpoint}}", "refId": "A"}]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Ошибки запросов",
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (endpoint, status) (rate(http_errors_total[5m]))", "legendFormat": "{{endpoint}} {{status}}", "refId": "A"}]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "p95 задержка",
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "{{endpoint}}", "refId": "A"}]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Вызовы модели по провайдерам и моделям",
+      "gridPos": {"x": 0, "y": 7, "w": 8, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (provider, model, degraded) (rate(model_calls_total[5m]))", "legendFormat": "{{provider}} / {{model}} degraded={{degraded}}", "refId": "A"}]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Токены по моделям",
+      "gridPos": {"x": 8, "y": 7, "w": 8, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (provider, model) (rate(model_tokens_total[5m]))", "legendFormat": "{{provider}} / {{model}}", "refId": "A"}]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Срабатывания лимитов",
+      "gridPos": {"x": 16, "y": 7, "w": 4, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (limit) (increase(limit_triggers_total[5m]))", "legendFormat": "{{limit}}", "refId": "A"}]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Отказы защитных проверок",
+      "gridPos": {"x": 20, "y": 7, "w": 4, "h": 7},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum by (action) (increase(guard_denied_total[5m]))", "legendFormat": "{{action}}", "refId": "A"}]
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Свежие события приложения",
+      "gridPos": {"x": 12, "y": 14, "w": 12, "h": 8},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [{"expr": "{job=\"docker\"} |~ \"request_finished|inspection_completed|limit_triggered|guard_denied\"", "refId": "A"}]
+    },
+    {
+      "id": 9,
+      "type": "traces",
+      "title": "Tempo search",
+      "gridPos": {"x": 0, "y": 14, "w": 12, "h": 8},
+      "datasource": {"type": "tempo", "uid": "tempo"},
+      "targets": [
+        {
+          "queryType": "traceql",
+          "query": "{resource.service.name=\"uborochka-api\"}",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

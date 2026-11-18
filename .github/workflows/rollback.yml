@@ -1,0 +1,42 @@
+name: Roll back production
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Git commit SHA to deploy
+        required: true
+        type: string
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Trigger rollback deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          TARGET_SHA: ${{ inputs.sha }}
+        run: scripts/rollback.sh "$TARGET_SHA"
+      - name: Wait for production health check
+        env:
+          TARGET_SHA: ${{ inputs.sha }}
+        run: |
+          for attempt in $(seq 1 30); do
+            response=$(curl --fail --silent --show-error \
+              --max-time 10 https://uborochka-xd8j.onrender.com/health) || response=""
+            commit=$(printf '%s' "$response" | python -c \
+              'import json,sys; print(json.load(sys.stdin).get("commit") or "")' \
+              2>/dev/null) || commit=""
+            if python -c \
+              'import sys; sys.exit(0 if sys.argv[1].lower().startswith(sys.argv[2].lower()) else 1)' \
+              "$commit" "$TARGET_SHA"; then
+              echo "Production reports the requested rollback commit."
+              exit 0
+            fi
+            echo "Health check attempt ${attempt}/30 reports an unexpected commit; waiting 10 seconds."
+            sleep 10
+          done
+          echo "Production did not report the requested rollback commit." >&2
+          exit 1

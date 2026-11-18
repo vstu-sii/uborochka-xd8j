@@ -1,0 +1,28 @@
+services:
+  app:
+    env_file: !override
+      - path: .env.staging
+        required: false
+    environment:
+      APP_ENV: staging
+      ENVIRONMENT: staging
+      DATABASE_URL: postgresql://uborochka_staging:staging_only@db:5432/uborochka_staging
+    ports: !override
+      - "8001:8000"
+
+  db:
+    environment:
+      POSTGRES_USER: uborochka_staging
+      POSTGRES_PASSWORD: staging_only
+      POSTGRES_DB: uborochka_staging
+    ports: !override
+      - "5433:5432"
+    volumes:
+      - pgdata_staging:/var/lib/postgresql/data
+
+  migrate:
+    environment:
+      DATABASE_URL: postgresql://uborochka_staging:staging_only@db:5432/uborochka_staging
+
+volumes:
+  pgdata_staging:
