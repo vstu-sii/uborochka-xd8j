@@ -103,6 +103,7 @@ docker compose -f compose.yml -f compose.staging.yml up --build
 Для локального мониторинга:
 
 ```bash
+cp monitoring/metrics_token.example monitoring/metrics_token
 docker compose -f compose.yml -f monitoring/compose.monitoring.yml up --build
 ```
 

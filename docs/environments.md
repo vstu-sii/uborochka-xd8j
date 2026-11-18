@@ -10,11 +10,17 @@
 | Провайдер модели | baseline-эвристика (Pillow); Gemini выключен | baseline-эвристика (Pillow); Gemini выключен | baseline-эвристика (Pillow), Gemini опционально |
 | Уровень логов | `INFO` | `INFO` | `INFO` (Render env) |
 
-`/metrics` остаётся открытым, когда `METRICS_TOKEN` не задан. Для защищённого
-endpoint задайте один и тот же `METRICS_TOKEN` приложению и Prometheus в
-локальном `.env`, staging env или Render. Prometheus передаёт значение как
-`Authorization: Bearer ...`; не добавляйте токен в конфигурационные файлы или
-логи.
+`/metrics` остаётся открытым, когда `METRICS_TOKEN` не задан. В локальном
+monitoring Compose Prometheus скрейпит его без авторизации по умолчанию.
+Чтобы включить Bearer auth, задайте `METRICS_TOKEN` приложению в игнорируемом
+`.env`/`.env.staging`, скопируйте `monitoring/metrics_token.example` в
+игнорируемый `monitoring/metrics_token` с тем же значением и раскомментируйте
+`authorization.credentials_file` в `monitoring/prometheus.yml`. Compose
+монтирует локальный `monitoring/metrics_token` read-only в
+`/etc/prometheus/metrics_token`; токен не подставляется через env в
+конфигурацию Prometheus. Для запуска monitoring Compose без авторизации
+тоже сначала скопируйте example-файл: его комментарии безопасны, а блок
+авторизации по умолчанию закомментирован.
 
 Staging повторяет локальный Compose и production Docker image; отличаются
 только `APP_ENV`/`ENVIRONMENT`, имена БД и тома, внешние порты, а также конфигурация

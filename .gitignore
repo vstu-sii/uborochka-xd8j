@@ -22,3 +22,6 @@ venv/
 # Логи и временные файлы
 *.log
 tmp/
+
+# Optional Prometheus scrape credential
+monitoring/metrics_token
