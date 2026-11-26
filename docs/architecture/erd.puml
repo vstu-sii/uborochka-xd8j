@@ -1,0 +1,44 @@
+@startuml erd
+!theme plain
+title Уборочка — ER-диаграмма
+
+hide circle
+skinparam linetype ortho
+
+entity "users" as users {
+  * id : bigserial <<PK>>
+  --
+  * telegram_user_id : bigint <<unique>>
+  username : text
+  full_name : text
+  * created_at : timestamptz
+}
+
+entity "assessments" as assessments {
+  * id : bigserial <<PK>>
+  --
+  * user_id : bigint <<FK>>
+  * telegram_photo_file_id : text
+  score : smallint
+  status : text
+  * created_at : timestamptz
+  scored_at : timestamptz
+}
+
+entity "recommendations" as recommendations {
+  * id : bigserial <<PK>>
+  --
+  * assessment_id : bigint <<FK>>
+  * text : text
+  * position : smallint
+}
+
+users ||--o{ assessments : "отправляет"
+assessments ||--o{ recommendations : "содержит"
+
+note right of assessments
+  status: pending | scored | failed
+  score: 1..10, заполняется после
+  ответа AI Vision Model
+end note
+@enduml
