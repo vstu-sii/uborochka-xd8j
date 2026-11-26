@@ -1,0 +1,4 @@
+test_id,photo,room_type,score,confidence,latency_ms,tokens_in,tokens_out,total_time_ms
+1,test.jpg,bedroom,10,high,2267,278,69,2267
+2,test.jpg,bathroom,10,high,1227,18,69,1228
+3,test.jpg,general,9,high,2038,278,68,2040
